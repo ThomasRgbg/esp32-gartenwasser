@@ -3,6 +3,7 @@ import time
 import ntptime
 
 from mqtt_handler import MQTTHandler
+from relay import Relay
 
 from tfluna_i2c import Luna 
 
@@ -20,36 +21,6 @@ from tfluna_i2c import Luna
 # GPIO18 CLK
 # GPIO19 SDA
 
-
-
-class Pumpe:
-    def __init__(self):
-        self.pin=Pin(5,Pin.OUT)
-        self.pin.value(0)
-
-    def on(self):
-        print("Set GPIO on")
-        self.pin.value(1)
-
-    def off(self):
-        print("Set GPIO off")
-        self.pin.value(0)
-
-    @property
-    def state(self):
-        return self.pin.value()
-
-    @state.setter
-    def state(self, value):
-        print("Setting pump to {0}".format(value))
-        if int(value) == 1:
-            self.on()
-        else:
-            self.off()
-
-    def set_state(self, value):
-        self.state = int(value)
-
 def updatetime(force):
     if (rtc.datetime()[0] < 2020) or (force is True):
         if wlan.isconnected():
@@ -62,10 +33,10 @@ def updatetime(force):
         print("RTC time looks already reasonable: {0}".format(rtc.datetime()))
 
 #####
-# Watchdog - 60 seconds, need to be larger then loop time below
+# Watchdog - 120 seconds, need to be larger then loop time below
 #####
 
-wdt = WDT(timeout=60000)
+wdt = WDT(timeout=120000)
 
 
 ####
@@ -75,7 +46,7 @@ wdt = WDT(timeout=60000)
 # time to connect WLAN, since marginal reception
 time.sleep(5)
 
-pumpe = Pumpe()
+pumpe = Relay(5)
 
 i2c = I2C(scl=Pin(18), sda=Pin(19), freq=100000)
 lidar = Luna(i2c)
