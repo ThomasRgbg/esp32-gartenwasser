@@ -46,7 +46,7 @@ wdt = WDT(timeout=120000)
 # time to connect WLAN, since marginal reception
 time.sleep(5)
 
-pumpe = Relay(5)
+pumpe = Relay(5, invert=True)
 
 i2c = I2C(0, scl=Pin(18), sda=Pin(19), freq=100000)
 lidar = Luna(i2c)
