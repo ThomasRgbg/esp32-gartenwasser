@@ -49,8 +49,9 @@ class MQTTHandler:
         return True
 
     def publish_generic(self, name, value):
-        print(".publish_generic() Publish: {0} = {1}".format(name, value))
-        self.mqtt.publish(name, str(value))
+        topic = self.name + b'/' + bytes(name, 'ascii')
+        print(".publish_generic() Publish: {0} = {1}".format(topic, value))
+        self.mqtt.publish(topic, str(value))
 
     def handle_mqtt_msgs(self, topic, msg):
         print(".handle_mqtt_msgs() Received MQTT message: {0}:{1}".format(topic,msg))
@@ -75,7 +76,9 @@ class MQTTHandler:
         
     def publish_all(self):
         for topic in self.publishers:
-            self.publish_generic(topic, self.publishers[topic]())
+            value = self.publishers[topic]()
+            print(".publish_all() Publish: {0} = {1}".format(topic, value))
+            self.mqtt.publish(topic, str(value))
         
     def resubscribe_all(self):
         for topic in self.actions:

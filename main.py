@@ -1,4 +1,4 @@
-from machine import Pin, I2C, reset, RTC, unique_id, Timer
+from machine import Pin, I2C, reset, RTC, unique_id, Timer, WDT
 import time
 import ntptime
 
@@ -51,8 +51,9 @@ pumpe = Relay(5)
 i2c = I2C(scl=Pin(18), sda=Pin(19), freq=100000)
 lidar = Luna(i2c)
 
-sc = MQTTHandler(b'pentling/zistvorne', '192.168.0.13')
+sc = MQTTHandler(b'pentling/zisthaus', '192.168.0.13')
 sc.register_action('pump_enable', pumpe.set_state)
+sc.register_publisher('pump', pumpe.get_state)
 
 rtc = RTC()
 wdt.feed()
@@ -100,7 +101,7 @@ def mainloop():
             sc.publish_generic('distance', dist)
             sc.publish_generic('min_distance', min_dist)
             sc.publish_generic('max_distance', max_dist)
-            sc.publish_generic('pump', pumpe.state)
+            sc.publish_all()
         else:
             print("MQTT not connected - try to reconnect")
             sc.connect()
