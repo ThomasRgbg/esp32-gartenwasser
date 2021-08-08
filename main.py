@@ -48,7 +48,7 @@ time.sleep(5)
 
 pumpe = Relay(5)
 
-i2c = I2C(scl=Pin(18), sda=Pin(19), freq=100000)
+i2c = I2C(0, scl=Pin(18), sda=Pin(19), freq=100000)
 lidar = Luna(i2c)
 
 sc = MQTTHandler(b'pentling/zisthaus', '192.168.0.13')
