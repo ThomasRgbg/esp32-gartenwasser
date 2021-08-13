@@ -1,6 +1,7 @@
 from machine import Pin, I2C, reset, RTC, unique_id, Timer, WDT
 import time
 import ntptime
+import esp32
 
 from mqtt_handler import MQTTHandler
 from relay import Relay
@@ -16,6 +17,9 @@ from tfluna_i2c import Luna
 # GPIO22 Ch2 Valve2
 # GPIO23 Ch3 Valve3
 # GPIO5  Ch4 Pump On/off
+
+# Buttons
+# GPIO25 Button 1 - Pump on/off
 
 # TF Luna
 # GPIO18 CLK
@@ -37,6 +41,29 @@ def updatetime(force):
 #####
 
 wdt = WDT(timeout=120000)
+
+####
+# Button handler
+####
+class Button:
+    def __init__(self, gpionum):
+        self.gpio = Pin(gpionum, Pin.IN, Pin.PULL_UP)
+        self.lastirq = 0       # Timestamp of last IRQ
+        self.debounce = 150    # Minimal time between to IRQs (debouncer)
+
+    def gpio_irq_callback(self,pin):
+        self.gpio.value()
+
+        delta = time.ticks_diff(time.ticks_ms(), self.lastirq)
+
+        if (delta > self.debounce):
+            self.lastirq = time.ticks_ms()
+            print('b', end='')
+        else:
+            print('d', end='')
+
+    def enable_irq(self):
+        self.gpio.irq(handler=self.gpio_irq_callback, trigger=Pin.IRQ_FALLING)
 
 
 ####
@@ -60,6 +87,9 @@ wdt.feed()
 
 logfile = open('logfile.txt', 'w')
 
+button_pump = Button(25) # Using GPIO
+button_pump.enable_irq()
+
 def mainloop():
     count = 1
     errcount = 0
@@ -75,7 +105,8 @@ def mainloop():
         print("Max Distance: {0}".format(max_dist))
         print("Amplification Value: {0}".format(amp))
         print("Error Value: {0}".format(errorv))
-        print("Temperature: {0}".format(temp))
+        print("Temperature Lidar: {0}".format(temp))
+        print("Temperature ESP32: {0}".format(esp32.raw_temperature()))
         print("Timestamp: {0}".format(timestamp))
         print("Pumpe: {0}".format(pumpe.state))
         print("Count: {0}".format(count))
