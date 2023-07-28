@@ -1,3 +1,6 @@
+# History:
+# v5 - Baseline (= don't remember)
+
 
 import machine
 import time
@@ -14,6 +17,7 @@ class MQTTHandler:
         self.connect()
         self.mqtt.set_callback(self.handle_mqtt_msgs)
         self.publish_all_after_msg = True
+        self.version = 5
 
     def connect(self):
         print('.connect() Check if MQTT is already connected')
@@ -39,6 +43,8 @@ class MQTTHandler:
     def isconnected(self):
         try:
             self.mqtt.ping()
+            time.sleep(0.5)
+            self.mqtt.check_msg()
         except OSError:
             print(".isconnected() MQTT not connected - Ping not successfull")
             return False
@@ -77,8 +83,9 @@ class MQTTHandler:
     def publish_all(self):
         for topic in self.publishers:
             value = self.publishers[topic]()
-            print(".publish_all() Publish: {0} = {1}".format(topic, value))
-            self.mqtt.publish(topic, str(value))
+            if value is not None:
+                print(".publish_all() Publish: {0} = {1}".format(topic, value))
+                self.mqtt.publish(topic, str(value))
         
     def resubscribe_all(self):
         for topic in self.actions:

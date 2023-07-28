@@ -1,7 +1,10 @@
 from machine import Pin, I2C, reset, RTC, unique_id, Timer, WDT
 import time
 import ntptime
-import esp32
+# import esp32
+import uasyncio
+import gc
+import micropython
 
 from mqtt_handler import MQTTHandler
 from relay import Relay
@@ -13,28 +16,27 @@ from tfluna_i2c import Luna
 ######
 
 # Relays
-# GPIO21 Ch1 Valve1
+# GPIO23 Ch1 Valve1
 # GPIO22 Ch2 Valve2
-# GPIO23 Ch3 Valve3
-# GPIO5  Ch4 Pump On/off
+# GPIO21 Ch3 Valve3
+# GPIO19 Ch4 Valve4
+# GPIO18 Ch5
+# GPIO5  Ch6 Pump
+# GPIO16 Ch7 Wallplug 1
+# GPIO17 Ch8 Wallplug 2
 
 # Buttons
-# GPIO25 Button 1 - Pump on/off
+# GPIO32 Button 1 - Pump on/off
+# GPIO33 Button 2 - 
+
+# Sensors
+# GPIO15 DHT11
+# GPIO34 ADC1
+# GPIO35 ADC2
 
 # TF Luna
-# GPIO18 CLK
-# GPIO19 SDA
-
-def updatetime(force):
-    if (rtc.datetime()[0] < 2020) or (force is True):
-        if wlan.isconnected():
-            print("try to set RTC")
-            try:
-                ntptime.settime()
-            except:  
-                print("Some error around time setting, likely timeout")
-    else:
-        print("RTC time looks already reasonable: {0}".format(rtc.datetime()))
+# GPIO25 CLK
+# GPIO26 SDA
 
 #####
 # Watchdog - 120 seconds, need to be larger then loop time below
@@ -42,111 +44,91 @@ def updatetime(force):
 
 wdt = WDT(timeout=120000)
 
-####
-# Button handler
-####
-class Button:
-    def __init__(self, gpionum):
-        self.gpio = Pin(gpionum, Pin.IN, Pin.PULL_UP)
-        self.lastirq = 0       # Timestamp of last IRQ
-        self.debounce = 150    # Minimal time between to IRQs (debouncer)
+#####
+# Housekeeping
+#####
 
-    def gpio_irq_callback(self,pin):
-        self.gpio.value()
+wdt.feed()
+count = 1
+errcount = 0
 
-        delta = time.ticks_diff(time.ticks_ms(), self.lastirq)
+def get_count():
+    global count
+    return count
 
-        if (delta > self.debounce):
-            self.lastirq = time.ticks_ms()
-            print('b', end='')
-        else:
-            print('d', end='')
+def get_errcount():
+    global errcount
+    return errcount
 
-    def enable_irq(self):
-        self.gpio.irq(handler=self.gpio_irq_callback, trigger=Pin.IRQ_FALLING)
-
-
-####
-# Main
-####
+#####
+# MQTT setup
+#####
 
 # time to connect WLAN, since marginal reception
 time.sleep(5)
 
-pumpe = Relay(5, invert=True)
+sc = MQTTHandler(b'pentling/gartenwasser', '192.168.0.13')
+#sc.register_publisher('pm25', pm25.get_pm25)
+#sc.register_publisher('errcount', get_errcount)
+#sc.register_publisher('count', get_count)
 
-i2c = I2C(0, scl=Pin(18), sda=Pin(19), freq=100000)
-lidar = Luna(i2c)
 
-sc = MQTTHandler(b'pentling/zisthaus', '192.168.0.13')
-sc.register_action('pump_enable', pumpe.set_state)
-sc.register_publisher('pump', pumpe.get_state)
+#####
+# Task definition
+#####
 
-rtc = RTC()
-wdt.feed()
-
-logfile = open('logfile.txt', 'w')
-
-button_pump = Button(25) # Using GPIO
-button_pump.enable_irq()
-
-def mainloop():
-    count = 1
-    errcount = 0
+async def housekeeping():
+    global errcount
+    global count
+    await uasyncio.sleep_ms(1000)
 
     while True:
-        dist, min_dist, max_dist = lidar.read_avg_dist()
-        amp = lidar.read_amp()
-        errorv = lidar.read_error()
-        temp = lidar.read_temp()
-        timestamp = rtc.datetime()
-        print("Distance: {0}".format(dist))
-        print("Min Distance: {0}".format(min_dist))
-        print("Max Distance: {0}".format(max_dist))
-        print("Amplification Value: {0}".format(amp))
-        print("Error Value: {0}".format(errorv))
-        print("Temperature Lidar: {0}".format(temp))
-        print("Temperature ESP32: {0}".format(esp32.raw_temperature()))
-        print("Timestamp: {0}".format(timestamp))
-        print("Pumpe: {0}".format(pumpe.state))
-        print("Count: {0}".format(count))
-
-        # On device logging for debugging
-        if (logfile and (count % 10 == 0)) or (pumpe.state == 1):
-            updatetime(False)
-            print("Write logfile")
-            logfile.write("{0}, ({1}),({2})\n".format(timestamp, dist,pumpe.state))
-            logfile.flush()
-        
-        # After some hours, reallign things
-        if (count % 100 == 0):
-            # After some days, the TF Luna gets stuck with just one value
-            print("periodic reset of Lidar")
-            lidar.reset_sensor()
-            # Force time sync to avoid to large drift
-            updatetime(True) 
-
-        if sc.isconnected():
-            print("send to MQTT server")
-            sc.mqtt.check_msg()
-            sc.publish_generic('distance', dist)
-            sc.publish_generic('min_distance', min_dist)
-            sc.publish_generic('max_distance', max_dist)
-            sc.publish_all()
-        else:
-            print("MQTT not connected - try to reconnect")
-            sc.connect()
-            errcount += 1
-            continue
-
+        print("housekeeping() - count {0}, errcount {1}".format(count,errcount))
         wdt.feed()
-
-        time.sleep(40)
+        gc.collect()
+        micropython.mem_info()
 
         # Too many errors, e.g. could not connect to MQTT
         if errcount > 20:
             reset()
 
         count += 1
+        await uasyncio.sleep_ms(60000)
 
-mainloop()
+async def handle_mqtt():
+    global errcount
+    while True:
+        # Generic MQTT
+        if sc.isconnected():
+#        if True:
+            print("handle_mqtt() - connected")
+    #            for i in range(29):
+    #                sc.mqtt.check_msg()
+    #                time.sleep(1)
+            sc.publish_all()
+        else:
+            print("handle_mqtt() - MQTT not connected - try to reconnect")
+            sc.connect()
+            errcount += 1
+            await uasyncio.sleep_ms(19000)
+
+        for i in range(45):
+            # print(i)
+            await uasyncio.sleep_ms(1000)
+
+####
+# Main
+####
+
+print("main_loop")
+main_loop = uasyncio.get_event_loop()
+
+main_loop.create_task(housekeeping())
+main_loop.create_task(handle_mqtt())
+
+main_loop.run_forever()
+main_loop.close()
+
+
+
+
