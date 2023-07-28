@@ -1,4 +1,5 @@
 # V1 (baseline, do not remember)
+# V2 - Added toggle function
 
 from machine import Pin
 
@@ -23,6 +24,12 @@ class Relay:
             self.pin.value(1)
         else:
             self.pin.value(0)
+
+    def toggle(self):
+        if self.state == 1:
+            self.off()
+        else:
+            self.on()    
 
     @property
     def state(self):
