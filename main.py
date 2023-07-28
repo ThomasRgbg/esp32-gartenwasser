@@ -120,9 +120,9 @@ async def handle_mqtt():
         # Generic MQTT
         if sc.isconnected():
             print("handle_mqtt() - connected")
-                for i in range(59):
-                    sc.mqtt.check_msg()
-                    time.sleep(1)
+            for i in range(59):
+                sc.mqtt.check_msg()
+                time.sleep(1)
             sc.publish_all()
         else:
             print("handle_mqtt() - MQTT not connected - try to reconnect")
