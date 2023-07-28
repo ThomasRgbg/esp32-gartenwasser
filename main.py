@@ -45,6 +45,17 @@ from tfluna_i2c import Luna
 wdt = WDT(timeout=120000)
 
 #####
+# Relay outputs
+#####
+relay_w1 = Relay(23, invert=True)
+relay_w2 = Relay(22, invert=True)
+relay_w3 = Relay(21, invert=True)
+relay_w4 = Relay(19, invert=True)
+relay_pumpe = Relay(5, invert=True)
+relay_st1 = Relay(16, invert=True)
+relay_st2 = Relay(16, invert=True)
+
+#####
 # Housekeeping
 #####
 
@@ -68,10 +79,18 @@ def get_errcount():
 time.sleep(5)
 
 sc = MQTTHandler(b'pentling/gartenwasser', '192.168.0.13')
-#sc.register_publisher('pm25', pm25.get_pm25)
-#sc.register_publisher('errcount', get_errcount)
-#sc.register_publisher('count', get_count)
 
+sc.register_action('pump_enable', relay_pumpe.set_state)
+sc.register_publisher('pump', relay_pumpe.get_state)
+
+sc.register_action('w1_enable', relay_pumpe.set_state)
+sc.register_publisher('w1', relay_pumpe.get_state)
+sc.register_action('w2_enable', relay_pumpe.set_state)
+sc.register_publisher('w2', relay_pumpe.get_state)
+sc.register_action('w3_enable', relay_pumpe.set_state)
+sc.register_publisher('w3', relay_pumpe.get_state)
+sc.register_action('w4_enable', relay_pumpe.set_state)
+sc.register_publisher('w4', relay_pumpe.get_state)
 
 #####
 # Task definition
