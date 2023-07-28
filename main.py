@@ -83,14 +83,14 @@ sc = MQTTHandler(b'pentling/gartenwasser', '192.168.0.13')
 sc.register_action('pump_enable', relay_pumpe.set_state)
 sc.register_publisher('pump', relay_pumpe.get_state)
 
-sc.register_action('w1_enable', relay_pumpe.set_state)
-sc.register_publisher('w1', relay_pumpe.get_state)
-sc.register_action('w2_enable', relay_pumpe.set_state)
-sc.register_publisher('w2', relay_pumpe.get_state)
-sc.register_action('w3_enable', relay_pumpe.set_state)
-sc.register_publisher('w3', relay_pumpe.get_state)
-sc.register_action('w4_enable', relay_pumpe.set_state)
-sc.register_publisher('w4', relay_pumpe.get_state)
+sc.register_action('w1_enable', relay_w1.set_state)
+sc.register_publisher('w1', relay_w1.get_state)
+sc.register_action('w2_enable', relay_w2.set_state)
+sc.register_publisher('w2', relay_w2.get_state)
+sc.register_action('w3_enable', relay_w3.set_state)
+sc.register_publisher('w3', relay_w3.get_state)
+sc.register_action('w4_enable', relay_w4.set_state)
+sc.register_publisher('w4', relay_w4.get_state)
 
 #####
 # Task definition
@@ -119,11 +119,10 @@ async def handle_mqtt():
     while True:
         # Generic MQTT
         if sc.isconnected():
-#        if True:
             print("handle_mqtt() - connected")
-    #            for i in range(29):
-    #                sc.mqtt.check_msg()
-    #                time.sleep(1)
+                for i in range(59):
+                    sc.mqtt.check_msg()
+                    time.sleep(1)
             sc.publish_all()
         else:
             print("handle_mqtt() - MQTT not connected - try to reconnect")
@@ -131,9 +130,9 @@ async def handle_mqtt():
             errcount += 1
             await uasyncio.sleep_ms(19000)
 
-        for i in range(45):
+        #for i in range(45):
             # print(i)
-            await uasyncio.sleep_ms(1000)
+        await uasyncio.sleep_ms(1000)
 
 ####
 # Main
