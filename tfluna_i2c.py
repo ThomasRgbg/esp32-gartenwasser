@@ -30,6 +30,7 @@ class Luna:
         min_dist = 80000
         max_dist = 0
         j = 0
+        self.high_power(True)
         for i in range(20):
             val = self.read_distance()
             print("tfluna_i2c/read_avg_dist() - {0}".format(val))
@@ -41,6 +42,7 @@ class Luna:
                 if max_dist < val:
                     max_dist = val
             await uasyncio.sleep_ms(250)
+        self.high_power(False)
         dist = dist / j
         return dist, min_dist, max_dist
 

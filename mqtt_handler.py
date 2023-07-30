@@ -19,7 +19,7 @@ class MQTTHandler:
         self.connect()
         self.mqtt.set_callback(self.handle_mqtt_msgs)
         self.publish_all_after_msg = True
-        self.version = 5
+        self.version = 7
 
     def connect(self):
         print('mqtt_handler.connect() Check if MQTT is already connected')
@@ -45,7 +45,6 @@ class MQTTHandler:
     def isconnected(self):
         try:
             self.mqtt.ping()
-            time.sleep(0.5)
             self.mqtt.check_msg()
         except OSError:
             print("mqtt_handler.isconnected() MQTT not connected - Ping not successfull")
