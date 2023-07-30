@@ -1,10 +1,19 @@
-import time
+# V1 baseline
+# V2 make I2C Addr configurable, convert to uasyncio
+# V3 direct consider offsets and height
+
+import uasyncio
+
  
 class Luna:
-    def __init__(self, i2c):
+    def __init__(self, i2c, i2c_addr=0x10):
         self.i2c = i2c
-        self.addr = 0x10
+        self.addr = i2c_addr
         self.reset_sensor()
+        self.offset = 0
+        
+    def setoffset(self, offset):
+        self.offset = offset
 
     def sensor_present(self):
         if self.i2c.readfrom_mem(self.addr, 0x0a, 1) == b'\x08':
@@ -16,14 +25,14 @@ class Luna:
         val = self.i2c.readfrom_mem(self.addr, 0x00, 2)
         return(int.from_bytes(val, 'little'))
 
-    def read_avg_dist(self):
+    async def read_avg_dist(self):
         dist = 0
         min_dist = 80000
         max_dist = 0
         j = 0
         for i in range(20):
             val = self.read_distance()
-            print(val)
+            print("tfluna_i2c/read_avg_dist() - {0}".format(val))
             if val > 0:
                 dist += val
                 j += 1
@@ -31,9 +40,16 @@ class Luna:
                     min_dist = val
                 if max_dist < val:
                     max_dist = val
-            time.sleep(0.25)
+            await uasyncio.sleep_ms(250)
         dist = dist / j
         return dist, min_dist, max_dist
+
+    async def read_height(self):
+        dist, min_dist, max_dist = await self.read_avg_dist()
+        heigth = (dist * -1) - self.offset
+        max_heigth = (min_dist * -1) - self.offset
+        min_heigth = (max_dist * -1) - self.offset
+        return heigth, min_heigth, max_heigth
 
     def read_amp(self):
         val = self.i2c.readfrom_mem(self.addr, 0x02, 2)
@@ -53,13 +69,13 @@ class Luna:
         else:
             self.i2c.writeto_mem(self.addr, 0x28, b'\x01')
 
-    def reset_sensor(self):
+    async def reset_sensor(self):
         self.i2c.writeto_mem(self.addr, 0x21, b'\x02')
-        time.sleep(5)
+        # await uasyncio.sleep_ms(2000)
         self.i2c.writeto_mem(self.addr, 0x26, b'\x02')
         self.i2c.writeto_mem(self.addr, 0x28, b'\x01')
 
-    def print_loop(self):
+    async def print_loop(self):
         while True:
             print("----")
             self.high_power(True)
@@ -67,4 +83,4 @@ class Luna:
             print(self.read_amp())
             print(self.read_temp())
             self.high_power(False)
-            time.sleep(5)
+            await uasyncio.sleep_ms(5000)
