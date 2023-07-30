@@ -1,6 +1,7 @@
 # History:
 # v5 - Baseline (= don't remember)
 # v6 - Fixed prints
+# v7 - Add support to filter zero values for pubisher
 
 
 import machine
@@ -14,7 +15,7 @@ class MQTTHandler:
         self.mqtt = MQTTClient(hexlify(machine.unique_id()), server)
         self.name = name
         self.actions = {}
-        self.publishers = {}
+        self.publishers = {}  # [varialbe, publish zero values]
         self.connect()
         self.mqtt.set_callback(self.handle_mqtt_msgs)
         self.publish_all_after_msg = True
@@ -76,17 +77,24 @@ class MQTTHandler:
             self.mqtt.subscribe(topic)
         self.actions[topic] = cbfunction
         
-    def register_publisher(self, topicname, function):
+    def register_publisher(self, topicname, function, zeros=True):
         topic = self.name + b'/' + bytes(topicname, 'ascii')
-        print("mqtt_handler.register_publisher() Get topic {0} for {1}".format(topic, function))
-        self.publishers[topic] = function
+        print("mqtt_handler.register_publisher() Get topic {0} for {1}, zeros {2}".format(topic, function, zeros))
+        self.publishers[topic] = [function, zeros]
         
     def publish_all(self):
         for topic in self.publishers:
-            value = self.publishers[topic]()
+            function, zeros = self.publishers[topic]
+            value = function()
             if value is not None:
-                print("mqtt_handler.publish_all() Publish: {0} = {1}".format(topic, value))
-                self.mqtt.publish(topic, str(value))
+                if zeros:
+                    print("mqtt_handler.publish_all() Publish: {0} = {1}".format(topic, value))
+                    self.mqtt.publish(topic, str(value))
+                elif value == 0 or value == 0.0:
+                    print("mqtt_handler.publish_all() Discard: {0} = {1}".format(topic, value))
+                else:
+                    print("mqtt_handler.publish_all() Publish: {0} = {1}".format(topic, value))
+                    self.mqtt.publish(topic, str(value))
         
     def resubscribe_all(self):
         for topic in self.actions:
