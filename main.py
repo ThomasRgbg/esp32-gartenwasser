@@ -137,6 +137,7 @@ async def handle_buttons():
 
 async def handle_tfluna():
     global errcount
+    height_count = 0
     last_height = -8000
     last_max_height = -8000
     last_min_height = -8000
@@ -160,6 +161,13 @@ async def handle_tfluna():
                 if (height > last_height+tolerance) or (height < last_height-tolerance):
                     sc.publish_generic('waterlevel', height)
                     last_height = height
+                else:
+                    height_count +=1
+                    
+                # Sporadic value to show he is alive
+                if height_count >= 10:
+                    height_count = 0
+                    sc.publish_generic('waterlevel', height)
                 
                 if (min_height > last_min_height+tolerance) or (min_height < last_min_height-tolerance):
                     sc.publish_generic('waterlevel_min', min_height)
@@ -169,7 +177,7 @@ async def handle_tfluna():
                     sc.publish_generic('waterlevel_max', max_height)
                     last_max_height = max_height
 
-        await uasyncio.sleep_ms(120000)
+        await uasyncio.sleep_ms(60000)
 
 
 async def handle_mqtt():
