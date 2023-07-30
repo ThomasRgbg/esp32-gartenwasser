@@ -46,10 +46,10 @@ class Luna:
 
     async def read_height(self):
         dist, min_dist, max_dist = await self.read_avg_dist()
-        heigth = (dist * -1) - self.offset
-        max_heigth = (min_dist * -1) - self.offset
-        min_heigth = (max_dist * -1) - self.offset
-        return heigth, min_heigth, max_heigth
+        height = (dist * -1) - self.offset
+        max_height = (min_dist * -1) - self.offset
+        min_height = (max_dist * -1) - self.offset
+        return height, min_height, max_height
 
     def read_amp(self):
         val = self.i2c.readfrom_mem(self.addr, 0x02, 2)
