@@ -2,6 +2,7 @@
 # v5 - Baseline (= don't remember)
 # v6 - Fixed prints
 # v7 - Add support to filter zero values for pubisher
+# v8 - Publish zero values after action due to a message 
 
 
 import machine
@@ -66,7 +67,7 @@ class MQTTHandler:
             print("mqtt_handler.handle_mqtt_msgs() Found registered function {0}".format(self.actions[topic]))
             self.actions[topic](msg)
             if self.publish_all_after_msg:
-                self.publish_all()
+                self.publish_all(force=True)
 
     def register_action(self, topicname, cbfunction):
         topic = self.name + b'/' + bytes(topicname, 'ascii')
@@ -81,12 +82,12 @@ class MQTTHandler:
         print("mqtt_handler.register_publisher() Get topic {0} for {1}, zeros {2}".format(topic, function, zeros))
         self.publishers[topic] = [function, zeros]
         
-    def publish_all(self):
+    def publish_all(self, force=False):
         for topic in self.publishers:
             function, zeros = self.publishers[topic]
             value = function()
             if value is not None:
-                if zeros:
+                if zeros or force:
                     print("mqtt_handler.publish_all() Publish: {0} = {1}".format(topic, value))
                     self.mqtt.publish(topic, str(value))
                 elif value == 0 or value == 0.0:
