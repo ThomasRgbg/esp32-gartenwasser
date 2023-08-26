@@ -137,13 +137,14 @@ async def handle_buttons():
 
 async def handle_tfluna():
     global errcount
+    count = 0
     height_count = 0
     last_height = -8000
     last_max_height = -8000
     last_min_height = -8000
     tolerance = 2
     while True:
-        print("handle_tfluna()")
+        print("handle_tfluna() - count {0}".format(count))
         # dist, min_dist, max_dist = await lidar.read_avg_dist()
         height, min_height, max_height = await lidar.read_height()
         amp = lidar.read_amp()
@@ -165,7 +166,7 @@ async def handle_tfluna():
                     height_count +=1
                     
                 # Sporadic value to show he is alive
-                if height_count >= 10:
+                if height_count >= 4:
                     height_count = 0
                     sc.publish_generic('waterlevel', height)
                 
@@ -176,6 +177,12 @@ async def handle_tfluna():
                 if (max_height > last_max_height+tolerance) or (max_height < last_max_height-tolerance):
                     sc.publish_generic('waterlevel_max', max_height)
                     last_max_height = max_height
+    
+        if count > 100:
+            count = 0
+            lidar.reset_sensor()
+        else:
+            count += 1
 
         await uasyncio.sleep_ms(60000)
 
