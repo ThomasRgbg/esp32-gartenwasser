@@ -159,24 +159,24 @@ async def handle_tfluna():
         
         if sc.isconnected():
             if isinstance(height, (float, int)):
-                if (height > last_height+tolerance) or (height < last_height-tolerance):
-                    sc.publish_generic('waterlevel', height)
-                    last_height = height
-                else:
-                    height_count +=1
+                #if (height > last_height+tolerance) or (height < last_height-tolerance):
+                #    sc.publish_generic('waterlevel', height)
+                #    last_height = height
+                #else:
+                #    height_count +=1
                     
                 # Sporadic value to show he is alive
-                if height_count >= 4:
-                    height_count = 0
-                    sc.publish_generic('waterlevel', height)
+                #if height_count >= 4:
+                #    height_count = 0
+                sc.publish_generic('waterlevel', height)
                 
-                if (min_height > last_min_height+tolerance) or (min_height < last_min_height-tolerance):
-                    sc.publish_generic('waterlevel_min', min_height)
-                    last_min_height = min_height
+                #if (min_height > last_min_height+tolerance) or (min_height < last_min_height-#tolerance):
+                sc.publish_generic('waterlevel_min', min_height)
+                #    last_min_height = min_height
 
-                if (max_height > last_max_height+tolerance) or (max_height < last_max_height-tolerance):
-                    sc.publish_generic('waterlevel_max', max_height)
-                    last_max_height = max_height
+                #if (max_height > last_max_height+tolerance) or (max_height < last_max_height-tolerance):
+                sc.publish_generic('waterlevel_max', max_height)
+                #    last_max_height = max_height
     
         if count > 100:
             count = 0
