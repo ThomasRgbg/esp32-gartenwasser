@@ -97,6 +97,11 @@ sc = MQTTHandler(b'pentling/gartenwasser', '192.168.0.13')
 sc.register_action('pump_enable', relay_pump.set_state)
 sc.register_publisher('pump', relay_pump.get_state, False)
 
+sc.register_action('st1_enable', relay_st1.set_state)
+sc.register_publisher('st1', relay_st1.get_state, False)
+sc.register_action('st2_enable', relay_st2.set_state)
+sc.register_publisher('st2', relay_st2.get_state, False)
+
 sc.register_action('w1_enable', relay_w1.set_state)
 sc.register_publisher('w1', relay_w1.get_state, False)
 sc.register_action('w2_enable', relay_w2.set_state)
