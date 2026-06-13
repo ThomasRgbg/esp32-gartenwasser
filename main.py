@@ -76,6 +76,7 @@ lidar.setoffset(-170)
 wdt.feed()
 count = 1
 errcount = 0
+program = 0
 
 def get_count():
     global count
@@ -85,6 +86,16 @@ def get_errcount():
     global errcount
     return errcount
 
+def get_program():
+    global program
+    return program
+
+def set_program(p):
+    global program
+    program = int(p)
+    print("set_program: program={0}".format(program))
+
+
 #####
 # MQTT setup
 #####
@@ -92,7 +103,7 @@ def get_errcount():
 # time to connect WLAN, since marginal reception
 time.sleep(5)
 
-sc = MQTTHandler(b'pentling/gartenwasser', '192.168.0.13')
+sc = MQTTHandler(b'pentling/gartenwasser', '192.168.0.10')
 
 sc.register_action('pump_enable', relay_pump.set_state)
 sc.register_publisher('pump', relay_pump.get_state, False)
@@ -110,6 +121,10 @@ sc.register_action('w3_enable', relay_w3.set_state)
 sc.register_publisher('w3', relay_w3.get_state, False)
 sc.register_action('w4_enable', relay_w4.set_state)
 sc.register_publisher('w4', relay_w4.get_state, False)
+
+sc.register_action('program_set', set_program)
+sc.register_publisher('program', get_program, False)
+
 
 #####
 # Task definition
@@ -192,25 +207,126 @@ async def handle_tfluna():
         await uasyncio.sleep_ms(60000)
 
 
-async def handle_mqtt():
+async def handle_mqtt_tx():
     global errcount
     while True:
-        # Generic MQTT
         if sc.isconnected():
-            print("handle_mqtt() - connected")
-            for i in range(29):
-                sc.mqtt.check_msg()
-                await uasyncio.sleep_ms(2000)
+            print("handle_mqtt_tx() - connected, do publish")
             sc.publish_all()
+            await uasyncio.sleep_ms(58000)
         else:
-            print("handle_mqtt() - MQTT not connected - try to reconnect")
+            print("handle_mqtt_tx() - MQTT not connected - try to reconnect")
             sc.connect()
             errcount += 1
-            await uasyncio.sleep_ms(19000)
+            await uasyncio.sleep_ms(18000)
 
-        #for i in range(45):
-            # print(i)
         await uasyncio.sleep_ms(2000)
+
+async def handle_mqtt_rx():
+    global errcount
+    while True:
+        if sc.isconnected():
+            #print("handle_mqtt_rx() - connected, wait for msg")
+            sc.mqtt.wait_msg()
+
+        # errcount += 1
+
+        await uasyncio.sleep_ms(500)
+
+async def water_set(w1,w2,w3,w4):
+    print("water_set: w1={0}, w2={1}, w3={2}, w4={3}".format(w1,w2,w3,w4))
+    relay_w1.set_state(w1)
+    relay_w2.set_state(w2)
+    relay_w3.set_state(w3)
+    relay_w4.set_state(w4)
+    await uasyncio.sleep(1)
+
+async def handle_giessen():
+    global errcount
+    global program
+        
+    while True:
+        print("handle_giessen(): program={0}".format(program))
+    
+        if program == 1:
+            print("handle_giessen() - Starting program 1, all w on")
+            await water_set(1,1,1,1)
+            print("handle_giessen() - pump on")
+            relay_pump.on()
+            print("handle_giessen() - let it run for 10 min")
+            for i in range(10*60):
+                await uasyncio.sleep(1)
+                if program != 1:
+                    break
+            print("handle_giessen() - only out 1/2/3")
+            relay_pump.off()
+            await water_set(1,1,1,0)
+            print("handle_giessen() - pump on")
+            relay_pump.on()
+            print("handle_giessen() - let it run for 20 min")
+            for i in range(20*60):
+                await uasyncio.sleep(1)
+                if program != 1:
+                    break
+            print("handle_giessen() - pump off, all out")
+            relay_pump.off()
+            await uasyncio.sleep(10)
+            await water_set(0,0,0,0)
+            print("handle_giessen() - done with program 1")
+            if program == 1:
+                program = 0
+        elif program == 2:
+            print("handle_giessen() - Starting program 2, only w 1 on")
+            relay_pump.off()
+            await water_set(1,0,0,0)
+            print("handle_giessen() - pump on")
+            relay_pump.on()
+            print("handle_giessen() - let it run for 30 min")
+            for i in range(30*60):
+                await uasyncio.sleep(1)
+                if program != 2:
+                    break
+            print("handle_giessen() - pump off, all out")
+            relay_pump.off()
+            await uasyncio.sleep(10)
+            await water_set(0,0,0,0)
+            print("handle_giessen() - done with program 2")
+            if program == 2:
+                program = 0
+        elif program == 3:
+            print("handle_giessen() - Starting program 3, only pump on")
+            relay_pump.on()
+            print("handle_giessen() - let it run for 30 min")
+            for i in range(30*60):
+                await uasyncio.sleep(1)
+                if program != 3:
+                    break
+            print("handle_giessen() - pump off, all out")
+            relay_pump.off()
+            print("handle_giessen() - done with program 3")
+            if program == 3:
+                program = 0
+
+
+            
+        else:
+            print("handle_giessen() - no program, waiting 10m")
+
+            # Normal mode, Pump off
+            relay_pump.off()
+            # holiday mode, pump on:
+            # relay_pump.on()
+            
+            if relay_pump.get_state() == 0:
+                print("handle_giessen() pump off")
+                water_set(0,0,0,0)
+
+            for i in range(1*60):
+                await uasyncio.sleep(1)
+                if program != 0:
+                    break
+
+
 
 ####
 # Main
@@ -220,9 +336,11 @@ print("main_loop")
 main_loop = uasyncio.get_event_loop()
 
 main_loop.create_task(housekeeping())
-main_loop.create_task(handle_mqtt())
+main_loop.create_task(handle_mqtt_tx())
+main_loop.create_task(handle_mqtt_rx())
 main_loop.create_task(handle_buttons())
 main_loop.create_task(handle_tfluna())
+main_loop.create_task(handle_giessen())
 
 main_loop.run_forever()
 main_loop.close()
